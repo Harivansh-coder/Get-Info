@@ -10,26 +10,37 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.Response;
-import com.android.volley.toolbox.StringRequest;
 
 import com.harivansh.gitinfo.adapter.IssueAdapter;
+import com.harivansh.gitinfo.api.IssueApi;
 import com.harivansh.gitinfo.databinding.ActivityIssueScreenBinding;
 import com.harivansh.gitinfo.model.Issue;
-import com.harivansh.gitinfo.request.RequestSingleton;
+
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class IssueScreen extends AppCompatActivity {
 
     private ActivityIssueScreenBinding binding;
 
     private ArrayList<Issue> issueArrayList;
+
+    private String repoName = "Repo";
+    private String userName = "user";
+
+    private String url = "https://api.github.com/repos/"+userName+"/"+repoName+"/";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,59 +53,62 @@ public class IssueScreen extends AppCompatActivity {
 
         issueArrayList = new ArrayList<>();
 
-        String repoName = "Repo";
 
         Bundle extras = getIntent().getExtras();
-        if (extras != null){
+        if (extras != null) {
+            userName = extras.getString("userName");
             repoName = extras.getString("repoName");
         }
 
         // repo name
         binding.repoNameissue.setText(repoName);
 
-        Log.d("reponame",repoName);
+        Log.d("reponame", repoName);
 
 
         // getting issue from api
-        String url ="https://api.github.com/repos/"+repoName+"/issues";
 
-        StringRequest request = new StringRequest(Request.Method.GET, url,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-
-                        try {
-                            JSONArray jsonArray = new JSONArray(response);
-                            for(int i = 0; i < jsonArray.length();i++){
-                                JSONObject jsonObject = jsonArray.getJSONObject(i);
-                                issueArrayList.add(new Issue(jsonObject.getString("title")));
-
-                            }
-
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
-                },
-                error -> Toast.makeText(IssueScreen.this,"error",Toast.LENGTH_LONG).show());
-
-        RequestSingleton.getInstance(IssueScreen.this).addToRequestQueue(request);
-
-        // issue recycle view
-        setAdapter();
-
-        if (issueArrayList.size() == 0){
-            Toast.makeText(IssueScreen.this,"No issues in this repo",Toast.LENGTH_LONG).show();
-        }
-
-
-
+        getIssues();
 
 
     }
 
-    private void setAdapter() {
+    private void getIssues() {
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(url)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        IssueApi issueApi = retrofit.create(IssueApi.class);
+
+        Call<List<Issue>> issueCall = issueApi.listIssue();
+
+        issueCall.enqueue(new Callback<List<Issue>>() {
+            @Override
+            public void onResponse(Call<List<Issue>> call, Response<List<Issue>> response) {
+                List<Issue> issueList = response.body();
+
+                if (response.isSuccessful()){
+
+                    assert issueList != null;
+                    issueArrayList.addAll(issueList);
+                }
+                setAdapter();
+
+                //Toast.makeText(IssueScreen.this,issueList.get(0).getIssueName(),Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onFailure(Call<List<Issue>> call, Throwable t) {
+
+                Toast.makeText(IssueScreen.this, t.getMessage(),Toast.LENGTH_LONG).show();
+
+            }
+        });
+    }
+
+    private void setAdapter(){
         IssueAdapter issueAdapter = new IssueAdapter(issueArrayList);
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getApplicationContext());
 
@@ -106,7 +120,7 @@ public class IssueScreen extends AppCompatActivity {
 
 
     @Override
-    protected void onDestroy() {
+    protected void onDestroy () {
         super.onDestroy();
         binding = null;
     }
