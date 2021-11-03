@@ -1,7 +1,10 @@
 package com.harivansh.gitinfo.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Issue {
 
+    @SerializedName("title")
     private String issueName;
 
     public Issue(String issueName) {

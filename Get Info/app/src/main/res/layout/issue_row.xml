@@ -16,7 +16,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity=""
+            android:gravity="center"
             android:orientation="horizontal"
             android:padding="@dimen/margin"
             >
@@ -25,8 +25,8 @@
                 android:id="@+id/issues_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/margin"
-                android:text="issue"
+                android:text="@string/issue"
+                android:textColor="@color/black"
                 android:textSize="18sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>

@@ -1,32 +1,31 @@
 package com.harivansh.gitinfo;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.DefaultItemAnimator;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+
 import com.google.android.material.snackbar.BaseTransientBottomBar;
 import com.google.android.material.snackbar.Snackbar;
 import com.harivansh.gitinfo.adapter.RepoAdapter;
+import com.harivansh.gitinfo.api.RepoApi;
 import com.harivansh.gitinfo.databinding.ActivityMainBinding;
 import com.harivansh.gitinfo.model.Repo;
-import com.harivansh.gitinfo.request.RequestSingleton;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -34,6 +33,10 @@ public class MainActivity extends AppCompatActivity {
 
     private ArrayList<Repo> repoArrayList;
     private RepoAdapter.RepoViewClickListener listener;
+
+    private RepoAdapter repoAdapter;
+
+    private ProgressDialog progressDialog;
 
 
     @Override
@@ -44,16 +47,20 @@ public class MainActivity extends AppCompatActivity {
         setContentView(view);
 
 
+        progressDialog = new ProgressDialog(MainActivity.this);
+
         // repo list
         repoArrayList = new ArrayList<>();
 
-
+        progressDialog.setMessage("Loading");
 
         // get repo button
         binding.getrepo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
+
+                progressDialog.show();
                 // getting username from the edittext
                 String userName = binding.gitUsername.getText().toString().trim();
 
@@ -61,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
 
                     repoArrayList.clear(); // clear the array before adding any element
                     requestService(userName);
-                    setAdapter();
+
 
                 }else Snackbar.make(binding.getrepo,
                         getString(R.string.empty_username),
@@ -73,11 +80,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void setAdapter() {
         setOnClickListner();
-        RepoAdapter repoAdapter = new RepoAdapter(repoArrayList,listener);
-        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getApplicationContext());
-        binding.reposRecycleView.setLayoutManager(layoutManager);
+        repoAdapter = new RepoAdapter(repoArrayList,listener);
+        binding.reposRecycleView.setLayoutManager(new LinearLayoutManager(this));
         binding.reposRecycleView.setItemAnimator(new DefaultItemAnimator());
         binding.reposRecycleView.setAdapter(repoAdapter);
+        
     }
 
 
@@ -88,7 +95,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view, int position) {
                 Intent intent = new Intent(getApplicationContext(),IssueScreen.class);
-                intent.putExtra("repoName",repoArrayList.get(position).getRepoName());
+                Bundle bundle = new Bundle();
+                bundle.putString("userName",binding.gitUsername.getText().toString());
+                bundle.putString("repoName",repoArrayList.get(position).getRepoName());
+                intent.putExtras(bundle);
                 startActivity(intent);
 
             }
@@ -99,37 +109,45 @@ public class MainActivity extends AppCompatActivity {
     // getting the repo data from the api
     private void requestService(String userName){
 
-        String url ="https://api.github.com/users/"+userName+"/repos";
+        String url ="https://api.github.com/";
 
-        StringRequest request = new StringRequest(Request.Method.GET, url,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(url)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
 
-                        try {
-                            JSONArray jsonArray = new JSONArray(response);
-                            for(int i = 0; i < jsonArray.length();i++){
-                                JSONObject jsonObject = jsonArray.getJSONObject(i);
-                                repoArrayList.add(new Repo(jsonObject.getString("full_name"),jsonObject.getString("description")));
+        RepoApi repoApi = retrofit.create(RepoApi.class);
 
-                            }
+        Call<List<Repo>> call = repoApi.listRepos(userName);
+        call.enqueue(new Callback<List<Repo>>() {
+            @Override
+            public void onResponse(Call<List<Repo>> call, Response<List<Repo>> response) {
 
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
+                progressDialog.dismiss();
+                List<Repo> repos = response.body();
 
-                    }
-                },new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Snackbar.make(binding.getrepo,
-                                "That didn't work!",
-                                BaseTransientBottomBar.LENGTH_LONG).show();
-                    }
-                });
+                if (response.isSuccessful()){
+
+                    assert repos != null;
+                    repoArrayList.addAll(repos);
+                }
+                setAdapter();
 
 
-        RequestSingleton.getInstance(MainActivity.this).addToRequestQueue(request);
+
+                //Toast.makeText(MainActivity.this,repos.get(0).getRepoName(),Toast.LENGTH_LONG).show();
+
+
+            }
+
+            @Override
+            public void onFailure(Call<List<Repo>> call, Throwable t) {
+
+                progressDialog.dismiss();
+                Toast.makeText(MainActivity.this, t.getMessage(),Toast.LENGTH_LONG).show();
+            }
+        });
+
 
     }
 
