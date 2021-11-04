@@ -5,6 +5,7 @@ import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -39,7 +40,10 @@ public class IssueScreen extends AppCompatActivity {
     private String repoName = "Repo";
     private String userName = "user";
 
-    private String url = "https://api.github.com/repos/"+userName+"/"+repoName+"/";
+    private String url = "https://api.github.com/repos/";
+
+
+    private ProgressDialog progressDialog;
 
 
     @Override
@@ -52,6 +56,9 @@ public class IssueScreen extends AppCompatActivity {
         // issue array
 
         issueArrayList = new ArrayList<>();
+
+        progressDialog = new ProgressDialog(IssueScreen.this);
+        progressDialog.setMessage("Getting issues for this repository");
 
 
         Bundle extras = getIntent().getExtras();
@@ -68,12 +75,16 @@ public class IssueScreen extends AppCompatActivity {
 
         // getting issue from api
 
+        url += userName+"/"+repoName+"/";
+
         getIssues();
 
 
     }
 
     private void getIssues() {
+
+        progressDialog.show();
 
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(url)
@@ -87,6 +98,8 @@ public class IssueScreen extends AppCompatActivity {
         issueCall.enqueue(new Callback<List<Issue>>() {
             @Override
             public void onResponse(Call<List<Issue>> call, Response<List<Issue>> response) {
+
+
                 List<Issue> issueList = response.body();
 
                 if (response.isSuccessful()){
@@ -95,13 +108,19 @@ public class IssueScreen extends AppCompatActivity {
                     issueArrayList.addAll(issueList);
                 }
                 setAdapter();
+                progressDialog.dismiss();
 
-                //Toast.makeText(IssueScreen.this,issueList.get(0).getIssueName(),Toast.LENGTH_LONG).show();
+                if (issueArrayList.isEmpty()){
+                    Toast.makeText(IssueScreen.this,"No issue in this repo",Toast.LENGTH_LONG).show();
+                }
+
+
             }
 
             @Override
             public void onFailure(Call<List<Issue>> call, Throwable t) {
 
+                progressDialog.dismiss();
                 Toast.makeText(IssueScreen.this, t.getMessage(),Toast.LENGTH_LONG).show();
 
             }
