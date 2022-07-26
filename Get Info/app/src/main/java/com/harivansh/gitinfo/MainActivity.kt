@@ -41,10 +41,10 @@ class MainActivity : AppCompatActivity() {
 
         // get repo button
         binding!!.getrepo.setOnClickListener {
-            progressDialog!!.show()
             // getting username from the edittext
             val userName = binding!!.gitUsername.text.toString().trim()
-            if (userName.length != 0) {
+            if (userName.isNotEmpty()) {
+                progressDialog!!.show()
                 repoArrayList!!.clear() // clear the array before adding any element
                 requestService(userName)
             } else Snackbar.make(
